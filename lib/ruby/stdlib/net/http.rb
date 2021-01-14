@@ -948,12 +948,13 @@ module Net   #:nodoc:
       D "opening connection to #{conn_address}:#{conn_port}..."
       begin
         if @open_timeout
+          start = Process.clock_gettime Process::CLOCK_MONOTONIC
+
           s = Socket.new(:INET, :STREAM)
           s.bind(Socket.pack_sockaddr_in(@local_port || 0, @local_host)) if @local_host
 
           sockaddr = Socket.sockaddr_in(conn_port, conn_address)
 
-          start = Process.clock_gettime Process::CLOCK_MONOTONIC
           begin
             s.connect_nonblock(sockaddr)
           rescue IO::WaitWritable
@@ -966,6 +967,7 @@ module Net   #:nodoc:
           s = TCPSocket.open(conn_address, conn_port, @local_host, @local_port)
         end
       rescue => e
+        e = Net::OpenTimeout.new(e) if e.is_a?(Errno::ETIMEDOUT) #for compatibility with previous versions
         raise e, "Failed to open TCP connection to " +
             "#{conn_address}:#{conn_port} (#{e.message})"
       end
